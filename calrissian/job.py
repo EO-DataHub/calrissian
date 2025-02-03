@@ -214,7 +214,7 @@ class KubernetesPodBuilder(object):
 
         # For workflow steps, only mount the aws user-service volume
         # And mount it to the shared credentials location
-        if self.name not in ["node_stage_in", "node_stage_out"]:
+        if not (self.name.startswith("node_stage_in") or self.name.startswith("node_stage_out")):
             for vol_m in self.volume_mounts[:]:
                 log.info(vol_m["name"])
                 log.info(vol_m["mountPath"])
@@ -227,14 +227,14 @@ class KubernetesPodBuilder(object):
                 elif vol_m["name"].startswith("temp-pvc-workspace-"):
                     self.volume_mounts.remove(vol_m)
                     log.info("Removed volume for calling workspace")
-        elif self.name == "node_stage_in":
+        elif self.name.startswith("node_stage_in"):
             for vol_m in self.volume_mounts[:]:
                 log.info(vol_m["name"])
                 if vol_m["name"] == "pvc-workspace":
                     self.volume_mounts.remove(vol_m)
                     log.info("Removed volume for executing workspace")
                     break
-        elif self.name == "node_stage_out":
+        elif self.name.startswith("node_stage_out"):
             for vol_m in self.volume_mounts[:]:
                 log.info(vol_m["name"])
                 if vol_m["name"].startswith("aws-credentials-workspace-"):
