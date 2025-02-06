@@ -218,8 +218,7 @@ class KubernetesPodBuilder(object):
                 is_user_service = True
                 break
 
-        # For workflow steps, only mount the aws user-service volume
-        # And mount it to the shared credentials location
+        # For user services we need to remove PVCs depending on calling or executing workspaces
         if is_user_service:
             if self.name.startswith("node_stage_in") or self.name == "node_stage_out":
                 for vol_m in self.volume_mounts[:]:
