@@ -122,11 +122,7 @@ class KubernetesVolumeBuilder(object):
             # Mount any additional volumes not already mounted, only duplicate is "calrissian-wdir"
             if claim_name != "calrissian-wdir":
                 log.info(f"Adding PVC {claim_name} mounted at {mount_path}")
-                # For stagein we need it to be writable
-                if claim_name.startswith("aws-credentials-"):
-                    self.add_volume_binding(mount_path, mount_path, True)
-                else:
-                    self.add_volume_binding(mount_path, mount_path, False)
+                self.add_volume_binding(mount_path, mount_path, False)
 
     def add_persistent_volume_entry(self, prefix, sub_path, claim_name, read_only):
         entry = {
@@ -212,40 +208,31 @@ class KubernetesPodBuilder(object):
         self.security_context = security_context
         self.serviceaccount = serviceaccount
 
-        # For workflow steps, only mount the aws user-service volume
-        # And mount it to the shared credentials location
-        if self.name not in ["node_stage_in", "node_stage_out"]:
-            for vol_m in self.volume_mounts[:]:
-                log.info(vol_m["name"])
-                log.info(vol_m["mountPath"])
-                if vol_m["name"].startswith("aws-credentials-service-"):
-                    vol_m["mountPath"] = vol_m["mountPath"].replace("/service", "")
-                    log.info("Updated mount path for workspace credentials")
-                elif vol_m["name"].startswith("aws-credentials-workspace-"):
-                    self.volume_mounts.remove(vol_m)
-                    log.info("Removed aws volume for calling workspace")
-                elif vol_m["name"].startswith("temp-pvc-workspace-"):
-                    self.volume_mounts.remove(vol_m)
-                    log.info("Removed volume for calling workspace")
-        elif self.name == "node_stage_in":
-            for vol_m in self.volume_mounts[:]:
-                log.info(vol_m["name"])
-                if vol_m["name"] == "pvc-workspace":
-                    self.volume_mounts.remove(vol_m)
-                    log.info("Removed volume for executing workspace")
-                    break
-        elif self.name == "node_stage_out":
-            for vol_m in self.volume_mounts[:]:
-                log.info(vol_m["name"])
-                if vol_m["name"].startswith("aws-credentials-workspace-"):
-                    vol_m["mountPath"] = vol_m["mountPath"].replace("/workspace", "")
-                    log.info("Updated mount path for user service credentials")
-                elif vol_m["name"].startswith("aws-credentials-service-"):
-                    self.volume_mounts.remove(vol_m)
-                    log.info("Removed aws volume for user service workspace")
-                elif vol_m["name"] == "pvc-workspace":
-                    self.volume_mounts.remove(vol_m)
-                    log.info("Removed volume for executing workspace")
+        # Check if this is a user service
+        # TODO: implement better way to identify this using parameters
+        is_user_service = False
+        for vol_m in self.volume_mounts:
+            # "temp-pvc-workspace-" only mounted for user services
+            if vol_m["name"].startswith("temp-pvc-workspace-"):
+                log.info("Identified User Service")
+                is_user_service = True
+                break
+
+        # For user services we need to remove PVCs depending on calling or executing workspaces
+        if is_user_service:
+            if self.name.startswith("node_stage_in") or self.name == "node_stage_out":
+                for vol_m in self.volume_mounts[:]:
+                    log.info(vol_m["name"])
+                    if vol_m["name"] == "pvc-workspace":
+                        self.volume_mounts.remove(vol_m)
+                        log.info("Removed volume for executing workspace")
+                        break
+            else:
+                for vol_m in self.volume_mounts[:]:
+                    if vol_m["name"].startswith("temp-pvc-workspace-"):
+                        self.volume_mounts.remove(vol_m)
+                        log.info("Removed volume for calling workspace")
+                        break
 
 
     def pod_name(self):
