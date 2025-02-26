@@ -353,6 +353,20 @@ class KubernetesPodBuilder(object):
         :return:
         """
         return {str(k): str(v) for k, v in self.nodeselectors.items()}
+    
+    def pod_tolerations(self):
+        """
+        Default tolerations for the pod
+        :return:
+        """
+        return [
+            {
+                "key": "ades.zoo.org/dedicated",
+                "operator": "Equal",
+                "value": "job",
+                "effect": "NoSchedule",
+            }
+        ]  # TODO: hardcoded tolerations for now
 
     def build(self):
         spec = {
@@ -379,7 +393,8 @@ class KubernetesPodBuilder(object):
                 'restartPolicy': 'Never',
                 'volumes': self.volumes,
                 'securityContext': self.security_context,
-                'nodeSelector': self.pod_nodeselectors()
+                'nodeSelector': self.pod_nodeselectors(),
+                'tolerations': self.pod_tolerations(),
             }
         }
         

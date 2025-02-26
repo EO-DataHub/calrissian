@@ -1,6 +1,6 @@
 docker ?= docker
 image ?= public.ecr.aws/eodh/eodhp-calrissian
-version ?= 0.1.3-rc1
+version ?= 0.1.3
 
 .SILENT:
 MAKEFLAGS += --no-print-directory
