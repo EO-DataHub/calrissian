@@ -213,7 +213,7 @@ class KubernetesPodBuilder(object):
         is_user_service = False
         for vol_m in self.volume_mounts:
             # "temp-pvc-workspace-" only mounted for user services
-            if vol_m.name.startswith("temp-pvc-workspace-"):
+            if vol_m["name"].startswith("temp-pvc-workspace-"):
                 log.info("Identified User Service")
                 is_user_service = True
                 break
@@ -222,14 +222,14 @@ class KubernetesPodBuilder(object):
         if is_user_service:
             if self.name.startswith("node_stage_in") or self.name == "node_stage_out":
                 for vol_m in self.volume_mounts[:]:
-                    log.info(vol_m.name)
-                    if vol_m.name == "pvc-workspace":
+                    log.info(vol_m["name"])
+                    if vol_m["name"] == "pvc-workspace":
                         self.volume_mounts.remove(vol_m)
                         log.info("Removed volume for executing workspace")
                         break
             else:
                 for vol_m in self.volume_mounts[:]:
-                    if vol_m.name.startswith("temp-pvc-workspace-"):
+                    if vol_m["name"].startswith("temp-pvc-workspace-"):
                         self.volume_mounts.remove(vol_m)
                         log.info("Removed volume for calling workspace")
                         break
