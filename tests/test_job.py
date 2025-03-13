@@ -371,7 +371,7 @@ class KubernetesPodBuilderTestCase(TestCase):
         self.pod_builder.resources = {'cores': 2, 'ram': 256}
         resources = self.pod_builder.container_resources()
         expected = {
-            'requests': {
+            'limits': {
                 'cpu': '2',
                 'memory': '256Mi'
             }
@@ -449,7 +449,7 @@ class KubernetesPodBuilderTestCase(TestCase):
                             {'name': 'K2', 'value': 'V2'},
                         ],
                         'resources': {
-                            'requests': {
+                            'limits': {
                                 'cpu': '1',
                                 'memory': '1024Mi',
                             }
