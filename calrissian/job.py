@@ -331,7 +331,7 @@ class KubernetesPodBuilder(object):
         log.debug('Building resources spec from {}'.format(self.resources))
         container_resources = {}
         for cwl_field, cwl_value in self.resources.items():
-            resource_bound = 'requests'
+            resource_bound = 'limits'
             resource_type = self.resource_type(cwl_field)
             resource_value = self.resource_value(resource_type, cwl_value)
             if resource_type and resource_value:
