@@ -331,7 +331,7 @@ class KubernetesPodBuilder(object):
         log.debug('Building resources spec from {}'.format(self.resources))
         container_resources = {}
         for cwl_field, cwl_value in self.resources.items():
-            resource_bound = 'requests'
+            resource_bound = 'limits'
             resource_type = self.resource_type(cwl_field)
             resource_value = self.resource_value(resource_type, cwl_value)
             if resource_type and resource_value:
@@ -352,6 +352,7 @@ class KubernetesPodBuilder(object):
         Submitted node selectors must be strings
         :return:
         """
+        log.info(f"Node selectors: {self.nodeselectors}")
         return {str(k): str(v) for k, v in self.nodeselectors.items()}
     
     def pod_tolerations(self):

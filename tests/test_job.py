@@ -86,10 +86,12 @@ class KubernetesPodVolumeInspectorTestCase(TestCase):
     def test_get_mounted_persistent_volumes(self):
         mock_pod = Mock()
         mock_volume_mount1 = Mock()
+        mock_volume_mount1.get.return_value = "data1"
         mock_volume_mount1.name = 'data1'
         mock_volume_mount1.mount_path = '/data/one'
         mock_volume_mount1.sub_path = None
         mock_volume_mount2 = Mock()
+        mock_volume_mount2.get.return_value = "data2"
         mock_volume_mount2.name = 'data2'
         mock_volume_mount2.mount_path = '/data/two'
         mock_volume_mount2.sub_path = '/basedir'
@@ -109,10 +111,12 @@ class KubernetesPodVolumeInspectorTestCase(TestCase):
     def test_get_mounted_persistent_volumes_ignores_unmounted_volumes(self):
         mock_pod = Mock()
         mock_volume_mount1 = Mock()
+        mock_volume_mount1.get.return_value = "data1"
         mock_volume_mount1.name = 'data1'
         mock_volume_mount1.mount_path = '/data/one'
         mock_volume_mount1.sub_path = None
         mock_volume_mount2 = Mock()
+        mock_volume_mount2.get.return_value = "data2"
         mock_volume_mount2.name = 'data2'
         mock_volume_mount2.mount_path = '/data/two'
         mock_volume_mount2.sub_path = 'basedir'
@@ -371,7 +375,7 @@ class KubernetesPodBuilderTestCase(TestCase):
         self.pod_builder.resources = {'cores': 2, 'ram': 256}
         resources = self.pod_builder.container_resources()
         expected = {
-            'requests': {
+            'limits': {
                 'cpu': '2',
                 'memory': '256Mi'
             }
@@ -449,7 +453,7 @@ class KubernetesPodBuilderTestCase(TestCase):
                             {'name': 'K2', 'value': 'V2'},
                         ],
                         'resources': {
-                            'requests': {
+                            'limits': {
                                 'cpu': '1',
                                 'memory': '1024Mi',
                             }
