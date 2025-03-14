@@ -352,6 +352,7 @@ class KubernetesPodBuilder(object):
         Submitted node selectors must be strings
         :return:
         """
+        log.info(f"Node selectors: {self.nodeselectors}")
         return {str(k): str(v) for k, v in self.nodeselectors.items()}
     
     def pod_tolerations(self):
