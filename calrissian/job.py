@@ -192,7 +192,7 @@ class KubernetesVolumeBuilder(object):
 
 class KubernetesPodBuilder(object):
 
-    def __init__(self, name, container_image, environment, volume_mounts, volumes, command_line, stdout, stderr, stdin, resources, labels, nodeselectors, security_context, serviceaccount):
+    def __init__(self, name, container_image, environment, volume_mounts, volumes, command_line, stdout, stderr, stdin, resources, labels, nodeselectors, security_context, serviceaccount, executing_workspace, calling_workspace, calling_service_account):
         self.name = name
         self.container_image = container_image
         self.environment = environment
@@ -207,16 +207,13 @@ class KubernetesPodBuilder(object):
         self.nodeselectors = nodeselectors
         self.security_context = security_context
         self.serviceaccount = serviceaccount
+        self.executing_workspace = executing_workspace
+        self.calling_workspace = calling_workspace
+        self.calling_service_account = calling_service_account
 
         # Check if this is a user service
         # TODO: implement better way to identify this using parameters
-        is_user_service = False
-        for vol_m in self.volume_mounts:
-            # "temp-pvc-workspace-" only mounted for user services
-            if vol_m["name"].startswith("temp-pvc-"):
-                log.info("Identified User Service")
-                is_user_service = True
-                break
+        is_user_service = self.executing_workspace != self.calling_workspace
 
         # For user services we need to remove PVCs depending on calling or executing workspaces
         if is_user_service:
@@ -227,6 +224,8 @@ class KubernetesPodBuilder(object):
                         self.volume_mounts.remove(vol_m)
                         log.info("Removed volume for executing workspace")
                         break
+                # Also update service account to be calling account
+                self.service_account = self.calling_service_account
             else:
                 for vol_m in self.volume_mounts[:]:
                     if vol_m["name"].startswith("temp-pvc-"):
@@ -536,6 +535,15 @@ class CalrissianCommandLineJob(ContainerCommandLineJob):
 
     def get_pod_serviceaccount(self, runtimeContext):
         return runtimeContext.pod_serviceaccount
+    
+    def get_executing_workspace(self, runtimeContext):
+        return runtimeContext.executing_workspace
+
+    def get_calling_workspace(self, runtimeContext):
+        return runtimeContext.calling_workspace
+    
+    def get_calling_service_account(self, runtimeContext):
+        return runtimeContext.calling_service_account
 
 
     def get_security_context(self, runtimeContext):
@@ -600,7 +608,10 @@ class CalrissianCommandLineJob(ContainerCommandLineJob):
             self.get_pod_labels(runtimeContext),
             self.get_pod_nodeselectors(runtimeContext),
             self.get_security_context(runtimeContext),
-            self.get_pod_serviceaccount(runtimeContext)
+            self.get_pod_serviceaccount(runtimeContext),
+            self.get_executing_workspace(runtimeContext),
+            self.get_calling_workspace(runtimeContext),
+            self.get_calling_service_account(runtimeContext),
         )
         built = k8s_builder.build()
         log.debug('{}\n{}{}\n'.format('-' * 80, yaml.dump(built), '-' * 80))
