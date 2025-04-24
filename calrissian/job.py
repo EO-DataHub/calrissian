@@ -225,7 +225,7 @@ class KubernetesPodBuilder(object):
                         log.info("Removed volume for executing workspace")
                         break
                 # Also update service account to be calling account
-                self.service_account = self.calling_service_account
+                self.serviceaccount = self.calling_service_account
             else:
                 for vol_m in self.volume_mounts[:]:
                     if vol_m["name"].startswith("temp-pvc-"):
