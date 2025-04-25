@@ -139,6 +139,35 @@ class KubernetesVolumeBuilder(object):
         self.persistent_volume_entries[prefix] = entry
         self.volumes.append(entry['volume'])
 
+    def add_ephemeral_volume_entry(self, prefix, sub_path, claim_name, read_only):
+        entry = {
+            'prefix': prefix,
+            'subPath': sub_path,
+            'volume': {
+                'name': claim_name,
+                'ephemeral': {
+                    'volumeClaimTemplate': {
+                        'metadata': {
+                            'labels': {
+                                'type': 'tmp-vol'
+                            }
+                        },
+                        'spec': {
+                            'accessModes': ["ReadWriteOnce"],
+                            'storageClassName': "file-storage",
+                            'resources': {
+                                'requests': {
+                                    'storage': '1Gi'
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        self.persistent_volume_entries[prefix] = entry
+        self.volumes.append(entry['volume'])
+
     def add_emptydir_volume(self, name):
         volume = {
             'name': name,
@@ -572,7 +601,9 @@ class CalrissianCommandLineJob(ContainerCommandLineJob):
         # Note that below add_volumes() may result in other temporary files being mounted
         # from the calrissian host's tmpdir prefix into an absolute container path, but this will
         # not conflict with '/tmp' as an emptyDir
-        self._add_emptydir_volume_and_binding('tmpdir', self.container_tmpdir)
+        # self._add_emptydir_volume_and_binding('tmpdir', self.container_tmpdir)
+
+        self._add_ephemeral_volume_and_binding('/tmp', '', 'tmpdir', read_only=True)
 
         # Call the ContainerCommandLineJob add_volumes method
         self.add_volumes(self.pathmapper,
@@ -625,6 +656,10 @@ class CalrissianCommandLineJob(ContainerCommandLineJob):
     def _add_emptydir_volume_and_binding(self, name, target):
         self.volume_builder.add_emptydir_volume(name)
         self.volume_builder.add_emptydir_volume_binding(name, target)
+
+    def _add_ephemeral_volume_and_binding(self, prefix, sub_path, claim_name, read_only=False):
+        self.volume_builder.add_ephemeral_volume_entry(prefix, sub_path, claim_name, read_only)
+        self.volume_builder.add_volume_binding(prefix, prefix, read_only)
 
     def _add_volume_binding(self, source, target, writable=False):
         self.volume_builder.add_volume_binding(source, target, writable)
