@@ -139,6 +139,35 @@ class KubernetesVolumeBuilder(object):
         self.persistent_volume_entries[prefix] = entry
         self.volumes.append(entry['volume'])
 
+    def add_ephemeral_volume_entry(self, prefix, sub_path, claim_name, read_only):
+        entry = {
+            'prefix': prefix,
+            'subPath': sub_path,
+            'volume': {
+                'name': claim_name,
+                'ephemeral': {
+                    'volumeClaimTemplate': {
+                        'metadata': {
+                            'labels': {
+                                'type': 'tmp-vol'
+                            }
+                        },
+                        'spec': {
+                            'accessModes': ["ReadWriteOnce"],
+                            'storageClassName': "file-storage",
+                            'resources': {
+                                'requests': {
+                                    'storage': '1Gi' # field required by k8s
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        self.persistent_volume_entries[prefix] = entry
+        self.volumes.append(entry['volume'])
+
     def add_emptydir_volume(self, name):
         volume = {
             'name': name,
@@ -192,7 +221,7 @@ class KubernetesVolumeBuilder(object):
 
 class KubernetesPodBuilder(object):
 
-    def __init__(self, name, container_image, environment, volume_mounts, volumes, command_line, stdout, stderr, stdin, resources, labels, nodeselectors, security_context, serviceaccount):
+    def __init__(self, name, container_image, environment, volume_mounts, volumes, command_line, stdout, stderr, stdin, resources, labels, nodeselectors, security_context, serviceaccount, executing_workspace, calling_workspace, calling_service_account):
         self.name = name
         self.container_image = container_image
         self.environment = environment
@@ -207,26 +236,23 @@ class KubernetesPodBuilder(object):
         self.nodeselectors = nodeselectors
         self.security_context = security_context
         self.serviceaccount = serviceaccount
+        self.executing_workspace = executing_workspace
+        self.calling_workspace = calling_workspace
+        self.calling_service_account = calling_service_account
 
         # Check if this is a user service
-        # TODO: implement better way to identify this using parameters
-        is_user_service = False
-        for vol_m in self.volume_mounts:
-            # "temp-pvc-workspace-" only mounted for user services
-            if vol_m["name"].startswith("temp-pvc-"):
-                log.info("Identified User Service")
-                is_user_service = True
-                break
+        is_user_service = self.executing_workspace != self.calling_workspace
 
         # For user services we need to remove PVCs depending on calling or executing workspaces
         if is_user_service:
             if self.name.startswith("node_stage_in") or self.name == "node_stage_out":
                 for vol_m in self.volume_mounts[:]:
-                    log.info(vol_m["name"])
                     if vol_m["name"].startswith("pvc-"):
                         self.volume_mounts.remove(vol_m)
                         log.info("Removed volume for executing workspace")
                         break
+                # Also update service account to be calling account
+                self.serviceaccount = self.calling_service_account
             else:
                 for vol_m in self.volume_mounts[:]:
                     if vol_m["name"].startswith("temp-pvc-"):
@@ -536,6 +562,15 @@ class CalrissianCommandLineJob(ContainerCommandLineJob):
 
     def get_pod_serviceaccount(self, runtimeContext):
         return runtimeContext.pod_serviceaccount
+    
+    def get_executing_workspace(self, runtimeContext):
+        return runtimeContext.executing_workspace
+
+    def get_calling_workspace(self, runtimeContext):
+        return runtimeContext.calling_workspace
+    
+    def get_calling_service_account(self, runtimeContext):
+        return runtimeContext.calling_service_account
 
 
     def get_security_context(self, runtimeContext):
@@ -565,7 +600,9 @@ class CalrissianCommandLineJob(ContainerCommandLineJob):
         # Note that below add_volumes() may result in other temporary files being mounted
         # from the calrissian host's tmpdir prefix into an absolute container path, but this will
         # not conflict with '/tmp' as an emptyDir
-        self._add_emptydir_volume_and_binding('tmpdir', self.container_tmpdir)
+        # self._add_emptydir_volume_and_binding('tmpdir', self.container_tmpdir)
+
+        self._add_ephemeral_volume_and_binding('/tmp', '', 'tmpdir', read_only=True)
 
         # Call the ContainerCommandLineJob add_volumes method
         self.add_volumes(self.pathmapper,
@@ -600,7 +637,10 @@ class CalrissianCommandLineJob(ContainerCommandLineJob):
             self.get_pod_labels(runtimeContext),
             self.get_pod_nodeselectors(runtimeContext),
             self.get_security_context(runtimeContext),
-            self.get_pod_serviceaccount(runtimeContext)
+            self.get_pod_serviceaccount(runtimeContext),
+            self.get_executing_workspace(runtimeContext),
+            self.get_calling_workspace(runtimeContext),
+            self.get_calling_service_account(runtimeContext),
         )
         built = k8s_builder.build()
         log.debug('{}\n{}{}\n'.format('-' * 80, yaml.dump(built), '-' * 80))
@@ -615,6 +655,10 @@ class CalrissianCommandLineJob(ContainerCommandLineJob):
     def _add_emptydir_volume_and_binding(self, name, target):
         self.volume_builder.add_emptydir_volume(name)
         self.volume_builder.add_emptydir_volume_binding(name, target)
+
+    def _add_ephemeral_volume_and_binding(self, prefix, sub_path, claim_name, read_only=False):
+        self.volume_builder.add_ephemeral_volume_entry(prefix, sub_path, claim_name, read_only)
+        self.volume_builder.add_volume_binding(prefix, prefix, read_only)
 
     def _add_volume_binding(self, source, target, writable=False):
         self.volume_builder.add_volume_binding(source, target, writable)

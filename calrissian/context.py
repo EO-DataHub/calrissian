@@ -22,4 +22,7 @@ class CalrissianRuntimeContext(RuntimeContext):
         self.pod_nodeselectors = None
         self.pod_serviceaccount = None
         self.tool_logs_basepath = None
+        self.executing_workspace = kwargs.get('executing_workspace', None)
+        self.calling_workspace = kwargs.get('calling_workspace', None)
+        self.calling_service_account = kwargs.get('calling_service_account', None)
         return super(CalrissianRuntimeContext, self).__init__(kwargs)

@@ -45,6 +45,10 @@ def add_arguments(parser):
     parser.add_argument('--stdout', type=Text, nargs='?', help='Output file name to tee standard output (CWL output object)')
     parser.add_argument('--stderr', type=Text, nargs='?', help='Output file name to tee standard error to (includes tool logs)')
     parser.add_argument('--tool-logs-basepath', type=Text, nargs='?', help='Base path for saving the tool logs')
+    parser.add_argument('--calling-workspace', type=Text, default="some-calling-workspace")
+    parser.add_argument('--executing-workspace', type=Text, default="some-executing-workspace")
+    parser.add_argument('--calling-service-account', type=Text, default="some-calling-service-account")
+    
 
 def print_version():
     print(version())
