@@ -241,7 +241,6 @@ class KubernetesPodBuilder(object):
         self.calling_service_account = calling_service_account
 
         # Check if this is a user service
-        # TODO: implement better way to identify this using parameters
         is_user_service = self.executing_workspace != self.calling_workspace
 
         # For user services we need to remove PVCs depending on calling or executing workspaces
