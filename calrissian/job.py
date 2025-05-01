@@ -157,7 +157,7 @@ class KubernetesVolumeBuilder(object):
                             'storageClassName': "file-storage",
                             'resources': {
                                 'requests': {
-                                    'storage': '1Gi'
+                                    'storage': '1Gi' # field required by k8s
                                 }
                             }
                         }
