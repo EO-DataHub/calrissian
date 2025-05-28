@@ -653,7 +653,7 @@ class CalrissianCommandLineJob(ContainerCommandLineJob):
 
     def _add_ephemeral_volume_and_binding(self, prefix, sub_path, claim_name):
         self.volume_builder.add_ephemeral_volume_entry(prefix, sub_path, claim_name)
-        self.volume_builder.add_volume_binding(prefix, prefix, True)
+        self.volume_builder.add_volume_binding(prefix, prefix, writeable=True)
 
     def _add_volume_binding(self, source, target, writable=False):
         self.volume_builder.add_volume_binding(source, target, writable)
