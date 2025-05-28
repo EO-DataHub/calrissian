@@ -152,7 +152,7 @@ class KubernetesVolumeBuilder(object):
                             'storageClassName': "block-storage",
                             'resources': {
                                 'requests': {
-                                    'storage': '32Gi'
+                                    'storage': '64Gi'
                                 }
                             }
                         }
@@ -597,7 +597,7 @@ class CalrissianCommandLineJob(ContainerCommandLineJob):
         # not conflict with '/tmp' as an emptyDir
         # self._add_emptydir_volume_and_binding('tmpdir', self.container_tmpdir)
 
-        self._add_ephemeral_volume_and_binding('/tmp', '', 'tmpdir', read_only=True)
+        self._add_ephemeral_volume_and_binding('/tmp', '', 'tmpdir')
 
         # Call the ContainerCommandLineJob add_volumes method
         self.add_volumes(self.pathmapper,
@@ -653,7 +653,7 @@ class CalrissianCommandLineJob(ContainerCommandLineJob):
 
     def _add_ephemeral_volume_and_binding(self, prefix, sub_path, claim_name):
         self.volume_builder.add_ephemeral_volume_entry(prefix, sub_path, claim_name)
-        self.volume_builder.add_volume_binding(prefix, prefix, writeable=True)
+        self.volume_builder.add_volume_binding(prefix, prefix, writable=True)
 
     def _add_volume_binding(self, source, target, writable=False):
         self.volume_builder.add_volume_binding(source, target, writable)
