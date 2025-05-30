@@ -139,7 +139,7 @@ class KubernetesVolumeBuilder(object):
         self.persistent_volume_entries[prefix] = entry
         self.volumes.append(entry['volume'])
 
-    def add_ephemeral_volume_entry(self, prefix, sub_path, claim_name, read_only):
+    def add_ephemeral_volume_entry(self, prefix, sub_path, claim_name):
         entry = {
             'prefix': prefix,
             'subPath': sub_path,
@@ -147,17 +147,12 @@ class KubernetesVolumeBuilder(object):
                 'name': claim_name,
                 'ephemeral': {
                     'volumeClaimTemplate': {
-                        'metadata': {
-                            'labels': {
-                                'type': 'tmp-vol'
-                            }
-                        },
                         'spec': {
                             'accessModes': ["ReadWriteOnce"],
-                            'storageClassName': "file-storage",
+                            'storageClassName': "block-storage",
                             'resources': {
                                 'requests': {
-                                    'storage': '1Gi' # field required by k8s
+                                    'storage': '64Gi'
                                 }
                             }
                         }
@@ -602,7 +597,7 @@ class CalrissianCommandLineJob(ContainerCommandLineJob):
         # not conflict with '/tmp' as an emptyDir
         # self._add_emptydir_volume_and_binding('tmpdir', self.container_tmpdir)
 
-        self._add_ephemeral_volume_and_binding('/tmp', '', 'tmpdir', read_only=True)
+        self._add_ephemeral_volume_and_binding('/tmp', '', 'tmpdir')
 
         # Call the ContainerCommandLineJob add_volumes method
         self.add_volumes(self.pathmapper,
@@ -656,9 +651,9 @@ class CalrissianCommandLineJob(ContainerCommandLineJob):
         self.volume_builder.add_emptydir_volume(name)
         self.volume_builder.add_emptydir_volume_binding(name, target)
 
-    def _add_ephemeral_volume_and_binding(self, prefix, sub_path, claim_name, read_only=False):
-        self.volume_builder.add_ephemeral_volume_entry(prefix, sub_path, claim_name, read_only)
-        self.volume_builder.add_volume_binding(prefix, prefix, read_only)
+    def _add_ephemeral_volume_and_binding(self, prefix, sub_path, claim_name):
+        self.volume_builder.add_ephemeral_volume_entry(prefix, sub_path, claim_name)
+        self.volume_builder.add_volume_binding(prefix, prefix, writable=True)
 
     def _add_volume_binding(self, source, target, writable=False):
         self.volume_builder.add_volume_binding(source, target, writable)
