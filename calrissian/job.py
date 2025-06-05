@@ -152,7 +152,7 @@ class KubernetesVolumeBuilder(object):
                             'storageClassName': "block-storage",
                             'resources': {
                                 'requests': {
-                                    'storage': '64Gi'
+                                    'storage': '128Gi'
                                 }
                             }
                         }
