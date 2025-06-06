@@ -248,6 +248,9 @@ class KubernetesPodBuilder(object):
                         break
                 # Also update service account to be calling account
                 self.serviceaccount = self.calling_service_account
+                # And remove workspace token for executing workspace
+                if "WORKSPACE_TOKEN" in self.environment:
+                    del self.environment["WORKSPACE_TOKEN"]
             else:
                 for vol_m in self.volume_mounts[:]:
                     if vol_m["name"].startswith("temp-pvc-"):
