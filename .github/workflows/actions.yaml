@@ -24,6 +24,8 @@ jobs:
 
   security-scan:
     name: Call Security Scan
+    permissions:
+      contents: read
     uses: EO-DataHub/github-actions/.github/workflows/security.yaml@main
 
   unit-tests:
