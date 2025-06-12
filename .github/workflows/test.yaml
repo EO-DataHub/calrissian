@@ -7,6 +7,8 @@ on:
 jobs:
   pre-commit-preparation:
     name: Pre-commit
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
