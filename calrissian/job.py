@@ -238,6 +238,9 @@ class KubernetesPodBuilder(object):
         # Check if this is a user service
         is_user_service = self.executing_workspace != self.calling_workspace
 
+        # Set default for stageout check
+        self.is_stageout = False
+
         # For user services we need to remove PVCs depending on calling or executing workspaces
         if is_user_service:
             if self.name.startswith("node_stage_in") or self.name == "node_stage_out":
@@ -255,6 +258,9 @@ class KubernetesPodBuilder(object):
                         log.info("Removed volume for calling workspace")
                         break
 
+        if self.name == "node_stage_out":
+            # Record that this is the stageout pod for use when adding annotations
+            self.is_stageout = True
 
     def pod_name(self):
         tag = random_tag()
@@ -419,6 +425,12 @@ class KubernetesPodBuilder(object):
                 'tolerations': self.pod_tolerations(),
             }
         }
+
+        if self.is_stageout:
+            log.info("Adding annotations")
+            spec["metadata"]["annotations"] = {
+                "linkerd.io/inject": "enabled",
+            }
         
         if ( self.serviceaccount ):
             spec['spec']['serviceAccountName'] = self.serviceaccount
