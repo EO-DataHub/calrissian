@@ -238,9 +238,27 @@ class KubernetesPodBuilder(object):
         # Check if this is a user service
         is_user_service = self.executing_workspace != self.calling_workspace
 
+        # Set stageout indicator
+        self.is_stageout = self.name.startswith("node_stage_out")
+
+        # Get workspace access tokens from params
+        with open("/workflow-params/params.yml", "r") as f:
+            params = yaml.safe_load(f)
+            token = params.get("WORKSPACE_ACCESS_TOKEN", None)
+            calling_token = params.get("CALLING_WORKSPACE_ACCESS_TOKEN", None)
+
+        # Set workspace token if requested
+        if "WORKSPACE_TOKEN" in self.environment and self.environment["WORKSPACE_TOKEN"] == "<<REPLACE>>":
+            self.environment["WORKSPACE_TOKEN"] = token
+
+        # Set calling workspace token if requested and stagein step
+        if self.name.startswith("node_stage_in"):
+            if "WORKSPACE_ACCESS_TOKEN" in self.environment and self.environment["WORKSPACE_ACCESS_TOKEN"] == "<<REPLACE>>":
+                self.environment["WORKSPACE_ACCESS_TOKEN"] = calling_token
+
         # For user services we need to remove PVCs depending on calling or executing workspaces
         if is_user_service:
-            if self.name.startswith("node_stage_in") or self.name == "node_stage_out":
+            if self.name.startswith("node_stage_in") or self.name.startswith("node_stage_out"):
                 for vol_m in self.volume_mounts[:]:
                     if vol_m["name"].startswith("pvc-"):
                         self.volume_mounts.remove(vol_m)
@@ -248,12 +266,19 @@ class KubernetesPodBuilder(object):
                         break
                 # Also update service account to be calling account
                 self.serviceaccount = self.calling_service_account
+                # And remove workspace token for executing workspace
+                if "WORKSPACE_TOKEN" in self.environment:
+                    del self.environment["WORKSPACE_TOKEN"]
             else:
                 for vol_m in self.volume_mounts[:]:
                     if vol_m["name"].startswith("temp-pvc-"):
                         self.volume_mounts.remove(vol_m)
                         log.info("Removed volume for calling workspace")
                         break
+
+        if self.name.startswith("node_stage_out"):
+            # Record that this is the stageout pod for use when adding annotations
+            self.is_stageout = True
 
 
     def pod_name(self):
@@ -422,6 +447,12 @@ class KubernetesPodBuilder(object):
         
         if ( self.serviceaccount ):
             spec['spec']['serviceAccountName'] = self.serviceaccount
+
+        if ( self.is_stageout ):
+            # Add annotations for stageout
+            spec['metadata']['annotations'] = {
+                "linkerd.io/inject": "enabled",
+            }
         
         return spec
 
