@@ -276,11 +276,6 @@ class KubernetesPodBuilder(object):
                         log.info("Removed volume for calling workspace")
                         break
 
-        if self.name.startswith("node_stage_out"):
-            # Record that this is the stageout pod for use when adding annotations
-            self.is_stageout = True
-
-
     def pod_name(self):
         tag = random_tag()
         return k8s_safe_name('{}-pod-{}'.format(self.name, tag))
