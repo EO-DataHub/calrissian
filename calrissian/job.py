@@ -444,7 +444,7 @@ class KubernetesPodBuilder(object):
             spec['spec']['serviceAccountName'] = self.serviceaccount
 
         if ( self.is_stageout ):
-            # Add annotations for stageout
+            # Add annotations for linkerd to stageout
             spec['metadata']['annotations'] = {
                 "linkerd.io/inject": "enabled",
             }
