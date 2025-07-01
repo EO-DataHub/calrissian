@@ -122,7 +122,11 @@ class KubernetesVolumeBuilder(object):
             # Mount any additional volumes not already mounted, only duplicate is "calrissian-wdir"
             if claim_name != "calrissian-wdir":
                 log.info(f"Adding PVC {claim_name} mounted at {mount_path}")
-                self.add_volume_binding(mount_path, mount_path, False)
+                writable = False
+                # Need to allow writing to the workspace directory
+                if claim_name.startswith("pvc-"):
+                    writable = True
+                self.add_volume_binding(mount_path, mount_path, writable=writable)
 
     def add_persistent_volume_entry(self, prefix, sub_path, claim_name, read_only):
         entry = {
