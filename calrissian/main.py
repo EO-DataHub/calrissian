@@ -4,6 +4,7 @@ from calrissian.version import version
 from calrissian.k8s import delete_pods
 from calrissian.report import initialize_reporter, write_report, CPUParser, MemoryParser
 from cwltool.main import main as cwlmain
+from cwltool.errors import WorkflowException
 from cwltool.argparser import arg_parser
 from typing_extensions import Text
 import logging
@@ -107,6 +108,16 @@ def flush_tees():
     sys.stdout.flush()
     sys.stderr.flush()
 
+def check_for_illegal_steps(cwl_dict: dict):
+    """
+    Checks for illegal steps in the CWL workflow.
+    """
+    for item in cwl_dict["$graph"]:
+        if item.get("id", "main") != "main":
+            steps = item.get("steps", [])
+            for step in steps:
+                if step["id"].startswith("node_stage_in") or step["id"].startswith("node_stage_out"):
+                    raise WorkflowException(f"Illegal step included in workflow: {step["id"]}")
 
 def main():
     parser = arg_parser()
