@@ -4,6 +4,7 @@ from calrissian.version import version
 from calrissian.k8s import delete_pods
 from calrissian.report import initialize_reporter, write_report, CPUParser, MemoryParser
 from cwltool.main import main as cwlmain
+from cwltool.errors import WorkflowException
 from cwltool.argparser import arg_parser
 from typing_extensions import Text
 import logging
@@ -12,6 +13,7 @@ import signal
 import subprocess
 import os
 import shlex
+import yaml
 
 log = logging.getLogger("calrissian.main")
 
@@ -107,6 +109,22 @@ def flush_tees():
     sys.stdout.flush()
     sys.stderr.flush()
 
+def check_for_illegal_steps(cwl_location: str):
+    """
+    Checks for illegal steps in the CWL workflow.
+    """
+    log.info(f"Checking for illegal steps in workflow: {cwl_location}")
+    cwl_location = cwl_location.rsplit(".cwl#", 1)[0]
+    if not cwl_location.endswith(".cwl"):
+        cwl_location = cwl_location + ".cwl"
+    with open(cwl_location, 'r') as cwl_file:
+        cwl_dict = yaml.safe_load(cwl_file)
+    for workflow_item in cwl_dict["$graph"]:
+        if workflow_item["class"] == "Workflow" and workflow_item["id"] != "main":
+            item_steps = workflow_item.get("steps", {})
+            for step_id in list(item_steps.keys()):
+                if step_id.startswith("node_stage_in") or step_id.startswith("node_stage_out"):
+                    raise WorkflowException(f"Illegal step included in workflow: {step_id}")
 
 def main():
     parser = arg_parser()
@@ -122,6 +140,7 @@ def main():
     runtime_context = CalrissianRuntimeContext(vars(parsed_args))
     runtime_context.select_resources = executor.select_resources
     install_signal_handler()
+    check_for_illegal_steps(parsed_args.workflow)
     try:
         result = cwlmain(args=parsed_args,
                          executor=executor,
