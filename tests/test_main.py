@@ -3,10 +3,16 @@ from unittest.mock import patch, call, Mock
 from calrissian.main import main, add_arguments, parse_arguments
 from calrissian.main import handle_sigterm, install_signal_handler, install_tees, flush_tees
 from calrissian.main import activate_logging, get_log_level, print_version
+from calrissian.main import check_for_illegal_steps
+from cwltool.errors import WorkflowException
 import logging
+import os
+import tempfile
+import yaml
 
 class CalrissianMainTestCase(TestCase):
 
+    @patch('calrissian.main.check_for_illegal_steps')
     @patch('calrissian.main.cwlmain')
     @patch('calrissian.main.arg_parser')
     @patch('calrissian.main.ThreadPoolJobExecutor', autospec=True)
@@ -32,7 +38,8 @@ class CalrissianMainTestCase(TestCase):
                                                   mock_install_signal_handler, mock_delete_pods,
                                                   mock_add_arguments, mock_parse_arguments, mock_version,
                                                   mock_runtime_context, mock_loading_context, mock_executor,
-                                                  mock_arg_parser, mock_cwlmain):
+                                                  mock_arg_parser, mock_cwlmain,
+                                                  mock_check_for_illegal_steps):
         mock_exit_code = Mock()
         mock_cwlmain.return_value = mock_exit_code  # not called before main
         result = main()
@@ -59,11 +66,12 @@ class CalrissianMainTestCase(TestCase):
         self.assertEqual(mock_initialize_reporter.call_args, call(mock_memory_parser.parse_to_megabytes.return_value, mock_cpu_parser.parse.return_value))
         self.assertEqual(mock_install_tees.call_args, call(mock_parse_arguments.return_value.stdout, mock_parse_arguments.return_value.stderr))
         self.assertTrue(mock_flush_tees.called)
+        self.assertEqual(mock_check_for_illegal_steps.call_args, call(mock_parse_arguments.return_value.workflow))
 
     def test_add_arguments(self):
         mock_parser = Mock()
         add_arguments(mock_parser)
-        self.assertEqual(mock_parser.add_argument.call_count, 10)
+        self.assertEqual(mock_parser.add_argument.call_count, 13)
 
     @patch('calrissian.main.sys')
     def test_parse_arguments_exits_without_ram_or_cores(self, mock_sys):
@@ -178,3 +186,53 @@ class CalrissianMainTestCase(TestCase):
     def test_print_version(self, mock_print, mock_version):
         print_version()
         self.assertEqual(mock_print.call_args, call(mock_version.return_value))
+
+
+class CheckForIllegalStepsTestCase(TestCase):
+
+    def setUp(self):
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmpdir.cleanup)
+
+    def check(self, steps):
+        graph = {
+            "$graph": [
+                {
+                    "class": "Workflow",
+                    "id": "main",
+                    "steps": {
+                        "node_stage_in": {"run": "#wf"},
+                        "node_stage_out": {"run": "#wf"},
+                    },
+                },
+                {"class": "Workflow", "id": "wf", "steps": steps},
+            ]
+        }
+        path = os.path.join(self.tmpdir.name, "workflow.cwl")
+        with open(path, "w") as cwl_file:
+            yaml.safe_dump(graph, cwl_file)
+        check_for_illegal_steps(path + "#main")
+
+    def test_map_form_legal_steps(self):
+        self.check({"step1": {"run": "#tool"}})
+
+    def test_map_form_illegal_step(self):
+        with self.assertRaises(WorkflowException):
+            self.check({"node_stage_out": {"run": "#tool"}})
+
+    def test_list_form_legal_steps(self):
+        self.check([{"id": "step1", "run": "#tool"}])
+
+    def test_list_form_illegal_step(self):
+        with self.assertRaises(WorkflowException):
+            self.check([{"id": "node_stage_in", "run": "#tool"}])
+
+    def test_list_form_illegal_step_with_prefixed_id(self):
+        with self.assertRaisesRegex(WorkflowException, "#wf/node_stage_out_2"):
+            self.check([{"id": "step1"}, {"id": "#wf/node_stage_out_2"}])
+
+    def test_main_workflow_steps_are_ignored(self):
+        self.check({})
+
+    def test_null_steps(self):
+        self.check(None)
