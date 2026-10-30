@@ -5,6 +5,7 @@ from calrissian.k8s import delete_pods
 from calrissian.report import initialize_reporter, write_report, CPUParser, MemoryParser
 from cwltool.main import main as cwlmain
 from cwltool.errors import WorkflowException
+from cwltool.process import shortname
 from cwltool.argparser import arg_parser
 from typing_extensions import Text
 import logging
@@ -121,9 +122,16 @@ def check_for_illegal_steps(cwl_location: str):
         cwl_dict = yaml.safe_load(cwl_file)
     for workflow_item in cwl_dict["$graph"]:
         if workflow_item["class"] == "Workflow" and workflow_item["id"] != "main":
-            item_steps = workflow_item.get("steps", {})
-            for step_id in list(item_steps.keys()):
-                if step_id.startswith("node_stage_in") or step_id.startswith("node_stage_out"):
+            item_steps = workflow_item.get("steps") or {}
+            # steps can be a map keyed by id or a list of steps carrying an id
+            if isinstance(item_steps, dict):
+                step_ids = list(item_steps.keys())
+            else:
+                step_ids = [
+                    step.get("id", "") for step in item_steps if isinstance(step, dict)
+                ]
+            for step_id in step_ids:
+                if shortname(step_id).startswith(("node_stage_in", "node_stage_out")):
                     raise WorkflowException(f"Illegal step included in workflow: {step_id}")
 
 def main():
