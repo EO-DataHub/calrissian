@@ -6,6 +6,7 @@ from calrissian.report import initialize_reporter, write_report, CPUParser, Memo
 from cwltool.main import main as cwlmain
 from cwltool.errors import WorkflowException
 from cwltool.argparser import arg_parser
+from calrissian.redact import install_log_redaction
 from typing_extensions import Text
 import logging
 import sys
@@ -30,6 +31,7 @@ def get_log_level(parsed_args):
 
 
 def activate_logging(level):
+    install_log_redaction()
     loggers = ['executor','context','tool','job', 'k8s','main']
     for logger in loggers:
         logging.getLogger('calrissian.{}'.format(logger)).setLevel(level)

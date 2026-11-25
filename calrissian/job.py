@@ -4,6 +4,7 @@ from cwltool.utils import DEFAULT_TMP_PREFIX
 from cwltool.errors import WorkflowException, UnsupportedRequirement
 from calrissian.k8s import KubernetesClient, CompletionResult
 from calrissian.report import Reporter, TimedResourceReport
+from calrissian.redact import PARAMS_PATH
 import logging
 import os
 import yaml
@@ -244,7 +245,7 @@ class KubernetesPodBuilder(object):
         self.is_stageout = self.name.startswith("node_stage_out")
 
         # Get workspace access tokens from params
-        with open("/workflow-params/params.yml", "r") as f:
+        with open(PARAMS_PATH, "r") as f:
             params = yaml.safe_load(f)
             token = params.get("WORKSPACE_ACCESS_TOKEN", None)
             calling_token = params.get("CALLING_WORKSPACE_ACCESS_TOKEN", None)
